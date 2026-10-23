@@ -1677,6 +1677,30 @@ block()
     DEPENDS ${onnxruntime_provider_test_deps}
   )
 
+  # onnxruntime_provider_test is a single ctest entry with thousands of tests, so
+  # `ctest --parallel N` runs it on one core. Optionally split it into N entries
+  # with gtest's built-in sharding; every test still runs exactly once.
+  set(onnxruntime_PROVIDER_TEST_SHARDS 1 CACHE STRING
+      "Number of gtest-sharded ctest entries to register for onnxruntime_provider_test")
+  if (onnxruntime_PROVIDER_TEST_SHARDS GREATER 1 AND TEST onnxruntime_provider_test)
+    set_tests_properties(onnxruntime_provider_test PROPERTIES DISABLED TRUE)
+    math(EXPR _ort_pt_last_shard "${onnxruntime_PROVIDER_TEST_SHARDS} - 1")
+    foreach(_ort_pt_shard RANGE ${_ort_pt_last_shard})
+      set(_ort_pt_args)
+      if (onnxruntime_GENERATE_TEST_REPORTS)
+        set(_ort_pt_args "--gtest_output=xml:$<SHELL_PATH:$<TARGET_FILE:${onnxruntime_provider_test_target}>.$<CONFIG>.shard${_ort_pt_shard}.results.xml>")
+      endif()
+      add_test(NAME onnxruntime_provider_test_shard${_ort_pt_shard}
+        COMMAND ${onnxruntime_provider_test_target} ${_ort_pt_args}
+        WORKING_DIRECTORY $<TARGET_FILE_DIR:${onnxruntime_provider_test_target}>
+      )
+      set_tests_properties(onnxruntime_provider_test_shard${_ort_pt_shard} PROPERTIES
+        TIMEOUT 10800
+        ENVIRONMENT "GTEST_TOTAL_SHARDS=${onnxruntime_PROVIDER_TEST_SHARDS};GTEST_SHARD_INDEX=${_ort_pt_shard}"
+      )
+    endforeach()
+  endif()
+
   # Match the non-plugin WebGPU test-source selection above.
   if (onnxruntime_USE_WEBGPU AND NOT onnxruntime_USE_EP_API_ADAPTERS)
     target_include_directories(${onnxruntime_provider_test_target} PRIVATE ${WGSL_GENERATED_ROOT})
