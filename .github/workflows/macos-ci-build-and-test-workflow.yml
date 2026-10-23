@@ -68,6 +68,7 @@ jobs:
         ${{ inputs.use_xnnpack && '--use_xnnpack' || '' }}
         ${{ inputs.use_coreml && '--use_coreml --skip_onnx_tests' || '' }}
         --use_vcpkg --use_vcpkg_ms_internal_asset_cache
+        --cmake_extra_defines onnxruntime_PROVIDER_TEST_SHARDS=3
         --config ${{ matrix.build_config }}
         --osx_arch ${{ matrix.target }}
 
